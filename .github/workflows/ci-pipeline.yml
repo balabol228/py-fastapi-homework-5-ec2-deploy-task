@@ -1,0 +1,73 @@
+name: CI Pipeline
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Run flake8 (Linter)
+        run: poetry run flake8 src
+
+  integration-tests:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Run Accounts Tests
+        run: poetry run pytest src/tests/test_integration/test_accounts.py
+
+      - name: Run Movies Tests
+        run: poetry run pytest src/tests/test_integration/test_movies.py
+
+      - name: Run Profiles Tests
+        run: poetry run pytest src/tests/test_integration/test_profiles.py
+
+  e2e-tests:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Start Docker Compose Tests
+        run: |
+          docker compose -f docker-compose-tests.yml up --build --abort-on-container-exit --exit-code-from web
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose -f docker-compose-tests.yml down
